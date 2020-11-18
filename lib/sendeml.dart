@@ -3,15 +3,23 @@
  * Licensed under the MIT License.
  */
 
+import 'dart:convert';
 import 'dart:io';
-//import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
-import 'package:tuple/tuple.dart';
-import 'package:optional/optional.dart';
 import 'package:collection/collection.dart';
+import 'package:intl/intl.dart';
+import 'package:optional/optional.dart';
+import 'package:tuple/tuple.dart';
 
 final cr = '\r'.codeUnitAt(0);
 final lf = '\n'.codeUnitAt(0);
+final space = ' '.codeUnitAt(0);
+final htab = '\t'.codeUnitAt(0);
+final crlf = '\r\n';
+
+final dateBytes = Uint8List.fromList(utf8.encode('Date:'));
+final msgIdBytes = Uint8List.fromList(utf8.encode('Message-ID:'));
 
 Optional<int> indexToOptional(int idx) {
   return idx > -1 ? Optional.of(idx) : Optional.empty();
@@ -29,10 +37,12 @@ Optional<int> findLf(Uint8List bytes, int offset) {
 
 final emptyLine = Uint8List.fromList([cr, lf, cr, lf]);
 
+final equalsList = const ListEquality().equals;
+
 bool isEmptyLine(Uint8List bytes, int idx) {
   return (bytes.length < (idx + 4))
       ? false
-      : ListEquality().equals(bytes.sublist(idx, idx + 4), emptyLine);
+      : equalsList(bytes.sublist(idx, idx + 4), emptyLine);
 }
 
 Optional<int> findEmptyLine(Uint8List bytes) {
@@ -84,6 +94,62 @@ Uint8List concatLines(List<Uint8List> lines) {
   return Uint8List.fromList(lines.expand((x) => x).toList());
 }
 
+bool matchHeader(Uint8List line, Uint8List header) {
+  if (header.isEmpty)
+    throw ArgumentError('header is empty');
+
+  return (line.length < header.length) ? false
+    : equalsList(line.sublist(0, header.length), header);
+}
+
+bool isDateLine(Uint8List line) {
+  return matchHeader(line, dateBytes);
+}
+
+bool isMsgIdLine(Uint8List line) {
+  return matchHeader(line, msgIdBytes);
+}
+
+String makeNowDateLine() {
+  final date = DateTime.now();
+  return DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').format(date);
+
+  // ToDo: timezone
+}
+
+String makeRandomMsgIdLine() {
+  const s = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const len = 62;
+  final r = Random();
+  final randStr = List.generate(len, (_) => s[r.nextInt(s.length)]).join();
+
+  return 'Message-ID: $randStr$crlf';
+}
+
+typedef MatchLine = bool Function(Uint8List);
+typedef MakeLine = String Function();
+
+bool isWsp(int b) {
+  return b == space || b == htab;
+}
+
+bool isFoldedLine(Uint8List bytes) {
+  return bytes.isNotEmpty ? isWsp(bytes.first) : false;
+}
+
+List<Uint8List> replaceLine(List<Uint8List> lines, MatchLine matchLine, MakeLine makeLine) {
+  final idx = lines.indexWhere(matchLine);
+  if (idx == -1) {
+    return lines;
+  }
+
+  final p1 = lines.sublist(0, idx);
+  final p2 = [Uint8List.fromList(utf8.encode(makeLine()))];
+  final p3 = lines.skip(idx + 1).skipWhile(isFoldedLine).toList();
+
+  return p1 + p2 + p3;
+}
+
 List<Uint8List> replaceDateLine(List<Uint8List> lines) {
   // ToDo
   return [];
@@ -122,7 +188,7 @@ Optional<Uint8List> replaceMail(Uint8List bytes, bool updateDate, bool updateMsg
 }
 
 void main() {
-  final data = new File('simple.eml').readAsBytesSync();
+  //final data = File('simple.eml').readAsBytesSync();
   //print(data);
 
   //final decoded = utf8.decode(data);
@@ -130,8 +196,13 @@ void main() {
 
   //print(String.fromCharCodes(data));
 
+  /*
   final res = splitMail(data);
   res.ifPresent((t) {
     print(t);
   });
+  */
+
+  //print(makeRandomMsgIdLine());
+  print(makeNowDateLine());
 }
