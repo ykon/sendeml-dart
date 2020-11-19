@@ -227,7 +227,10 @@ void main() {
 
   group('makeNowDateLine', () {
     test('line', () {
-      // ToDo
+      final line = makeNowDateLine();
+      expect(line.startsWith('Date:'), isTrue);
+      expect(line.endsWith(crlf), isTrue);
+      expect(line.length <= 76, isTrue);
     });
   });
 
@@ -272,21 +275,154 @@ void main() {
     });
   });
 
-  group('replaceDateLine', () {
-    test('0', () {
-      // ToDo
+  String toCrLf(String lfStr) {
+    return lfStr.replaceAll('\n', crlf);
+  }
+
+  String makeSimpleMailText() {
+    final text = '''From: a001 <a001@ah62.example.jp>
+Subject: test
+To: a002@ah62.example.jp
+Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
+Date: Sun, 26 Jul 2020 22:01:37 +0900
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101
+ Thunderbird/78.0.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+
+test''';
+    return toCrLf(text);
+  }
+
+String makeFoldedMailText() {
+    const text = '''From: a001 <a001@ah62.example.jp>
+Subject: test
+To: a002@ah62.example.jp
+Message-ID:
+ <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
+Date:
+ Sun, 26 Jul 2020
+ 22:01:37 +0900
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101
+ Thunderbird/78.0.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+
+test''';
+    return toCrLf(text);
+}
+
+Uint8List makeInvalidMail() {
+  return strUint8(makeFoldedMailText().replaceFirst('\r\n\r\n', ''));
+}
+
+  group('make*Text', () {
+    test('simple', () {
+      final text = makeSimpleMailText();
+      expect('\r\n'.allMatches(text).length, equals(12));
+    });
+
+    test('folded', () {
+      final text = makeFoldedMailText();
+      expect('\r\n'.allMatches(text).length, equals(15));
     });
   });
 
-  test('replaceMsgIdLine', () {
-    // ToDo
+  Uint8List makeSimpleMail() {
+    return strUint8(makeSimpleMailText());
+  }
+
+  Uint8List makeFoldedMail() {
+    return strUint8(makeFoldedMailText());
+  }
+
+  String getHeaderLine(Uint8List mail, String name) {
+    final text = utf8.decode(mail);
+
+    final re = RegExp(name + r':[\s\S]+?\r\n(?=([^ \t]|$))');
+    return re.firstMatch(text).group(0);
+  }
+
+  String getDateLine(Uint8List mail) {
+    return getHeaderLine(mail, "Date");
+  }
+
+  String getMsgIdLine(Uint8List mail) {
+    return getHeaderLine(mail, "Message-ID");
+  }
+
+  group('replaceDateLine', () {
+    test('folded', () {
+      final foldedMail = makeFoldedMail();
+      final lines = getLines(foldedMail);
+      final newLines = replaceDateLine(lines);
+      final newMail = concatLines(newLines);
+      expect(equalsList(foldedMail, newMail), isFalse);
+      expect(getDateLine(newMail) != getDateLine(foldedMail), isTrue);
+      expect(getMsgIdLine(newMail) == getMsgIdLine(foldedMail), isTrue);
+    });
   });
 
-  test('replaceHeader', () {
-    // ToDo
+  group('replaceMsgIdLine', () {
+    test('folded', () {
+      final foldedMail = makeFoldedMail();
+      final lines = getLines(foldedMail);
+      final newLines = replaceMsgIdLine(lines);
+      final newMail = concatLines(newLines);
+      expect(equalsList(foldedMail, newMail), isFalse);
+      expect(getMsgIdLine(newMail) != getMsgIdLine(foldedMail), isTrue);
+      expect(getDateLine(newMail) == getDateLine(foldedMail), isTrue);
+    });
   });
 
-  test('replaceMail', () {
-    // ToDo
+  group('replaceHeader', () {
+    final f = (l, b1, b2) => replaceHeader(l, b1, b2);
+
+    final foldedMail = makeFoldedMail();
+    final dateLine = getDateLine(foldedMail);
+    final msgIdLine = getMsgIdLine(foldedMail);
+
+    test('true, true', () {
+      final replMail = f(foldedMail, true, true);
+      expect(dateLine != getDateLine(replMail), isTrue);
+      expect(msgIdLine != getMsgIdLine(replMail), isTrue);
+    });
+
+    test('true, false', () {
+      final replMail = f(foldedMail, true, false);
+      expect(dateLine != getDateLine(replMail), isTrue);
+      expect(msgIdLine == getMsgIdLine(replMail), isTrue);
+    });
+
+    test('false, true', () {
+      final replMail = f(foldedMail, false, true);
+      expect(dateLine == getDateLine(replMail), isTrue);
+      expect(msgIdLine != getMsgIdLine(replMail), isTrue);
+    });
+
+    test('false, false', () {
+      final replMail = f(foldedMail, false, false);
+      expect(equalsList(replMail, foldedMail), isTrue);
+    });
+  });
+
+  group('replaceMail', () {
+    final f = (l, b1, b2) => replaceMail(l, b1, b2);
+
+    test('replace', () {
+      final foldedMail = makeFoldedMail();
+      final replMail = f(foldedMail, true, true).value;
+      expect(equalsList(replMail, foldedMail), isFalse);
+      final body = replMail.sublist(replMail.length - 4);
+      expect(utf8.decode(body), equals('test'));
+    });
+
+    test('invalid', () {
+      expect(f(makeInvalidMail(), true, true).isEmpty, isTrue);
+    });
   });
 }

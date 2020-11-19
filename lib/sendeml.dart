@@ -4,7 +4,7 @@
  */
 
 import 'dart:convert';
-import 'dart:io';
+//import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
@@ -16,7 +16,7 @@ final cr = '\r'.codeUnitAt(0);
 final lf = '\n'.codeUnitAt(0);
 final space = ' '.codeUnitAt(0);
 final htab = '\t'.codeUnitAt(0);
-final crlf = '\r\n';
+const crlf = '\r\n';
 
 final dateBytes = Uint8List.fromList(utf8.encode('Date:'));
 final msgIdBytes = Uint8List.fromList(utf8.encode('Message-ID:'));
@@ -95,8 +95,9 @@ Uint8List concatLines(List<Uint8List> lines) {
 }
 
 bool matchHeader(Uint8List line, Uint8List header) {
-  if (header.isEmpty)
+  if (header.isEmpty) {
     throw ArgumentError('header is empty');
+  }
 
   return (line.length < header.length) ? false
     : equalsList(line.sublist(0, header.length), header);
@@ -110,11 +111,19 @@ bool isMsgIdLine(Uint8List line) {
   return matchHeader(line, msgIdBytes);
 }
 
-String makeNowDateLine() {
-  final date = DateTime.now();
-  return DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').format(date);
+String makeTimeZoneOffset(DateTime now) {
+  final offset = now.timeZoneOffset;
 
-  // ToDo: timezone
+  final first = offset.inHours.toString().padLeft(2, '0');
+  return '+' + first.padRight(4, '0');
+}
+
+String makeNowDateLine() {
+  final now = DateTime.now();
+  final date = DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').format(now);
+  final zone = makeTimeZoneOffset(now);
+
+  return 'Date: $date $zone$crlf';
 }
 
 String makeRandomMsgIdLine() {
@@ -151,22 +160,22 @@ List<Uint8List> replaceLine(List<Uint8List> lines, MatchLine matchLine, MakeLine
 }
 
 List<Uint8List> replaceDateLine(List<Uint8List> lines) {
-  // ToDo
-  return [];
+  return replaceLine(lines, isDateLine, makeNowDateLine);
 }
 
 List<Uint8List> replaceMsgIdLine(List<Uint8List> lines) {
-  // ToDo
-  return [];
+  return replaceLine(lines, isMsgIdLine, makeRandomMsgIdLine);
 }
 
 Uint8List replaceHeader(Uint8List header, bool updateDate, bool updateMsgId) {
   final lines = getLines(header);
 
+  final d = updateDate;
+  final m = updateMsgId;
   return concatLines(
-    updateDate && updateMsgId ? replaceMsgIdLine(replaceDateLine(lines))
-    : updateDate && !updateMsgId ? replaceDateLine(lines)
-    : !updateDate && updateMsgId ? replaceMsgIdLine(lines)
+    (d && m) ? replaceMsgIdLine(replaceDateLine(lines))
+    : (d && !m) ? replaceDateLine(lines)
+    : (!d && m) ? replaceMsgIdLine(lines)
     : lines
   );
 }
