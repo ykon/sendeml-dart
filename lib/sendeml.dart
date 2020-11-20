@@ -131,7 +131,7 @@ String makeRandomMsgIdLine() {
   final r = Random();
   final randStr = List.generate(len, (_) => s[r.nextInt(s.length)]).join();
 
-  return 'Message-ID: $randStr$crlf';
+  return 'Message-ID: <$randStr>$crlf';
 }
 
 typedef MatchLine = bool Function(Uint8List);

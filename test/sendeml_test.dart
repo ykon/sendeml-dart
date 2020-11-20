@@ -15,11 +15,11 @@ void main() {
   }
   
   Uint8List strUint8(String s) {
-    return Uint8List.fromList(utf8.encode(s));
+    return uint8(utf8.encode(s));
   }
 
   group('indexToOptional', () {
-    final f = (n) => indexToOptional(n);
+    final f = indexToOptional;
 
     test('present', () {
       expect(f(0).isPresent, isTrue);
@@ -33,7 +33,7 @@ void main() {
   });
 
   group('findCr', () {
-    final f = (l, n) => findCr(l, n);
+    final f = findCr;
     final cr6 = uint8([0, 1, 2, 3, 4, 5, cr, 7, 8, 9]);
 
     test('present', () {
@@ -51,7 +51,7 @@ void main() {
   });
 
   group('findLf', () {
-    final f = (l, n) => findLf(l, n);
+    final f = findLf;
     final lf6 = uint8([0, 1, 2, 3, 4, 5, lf, 7, 8, 9]);
     test('present', () {
       final optOk = f(lf6, 0);
@@ -85,7 +85,7 @@ void main() {
   });
 
   group('isEmptyLine', () {
-    final f = (l, n) => isEmptyLine(l, n);
+    final f = isEmptyLine;
 
     test('ok', () {
       final ok1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, lf, 9]);
@@ -105,7 +105,7 @@ void main() {
   });
 
   group('findEmptyLine', () {
-    final f = (l) => findEmptyLine(l);
+    final f = findEmptyLine;
 
     test('ok', () {
       final ok1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, lf, 9]);
@@ -123,7 +123,7 @@ void main() {
   });
 
   group('splitMail', () {
-    final f = (l) => splitMail(l);
+    final f = splitMail;
 
     test('ok', () {
       final ok = uint8([0, 1, 2, cr, lf, cr, lf, 7, 8, 9]);
@@ -226,7 +226,7 @@ void main() {
   });
 
   group('makeTimeZoneOffset', () {
-    final f = (n) => makeTimeZoneOffset(n);
+    final f = makeTimeZoneOffset;
     test('+', () {
       expect(f(540), equals("+0900"));
       expect(f(515), equals("+0835"));
@@ -249,7 +249,7 @@ void main() {
       final line = makeNowDateLine();
       expect(line.startsWith('Date:'), isTrue);
       expect(line.endsWith(crlf), isTrue);
-      expect(line.length <= 76, isTrue);
+      expect(line.length <= 78, isTrue);
     });
   });
 
@@ -258,12 +258,12 @@ void main() {
       final line = makeRandomMsgIdLine();
       expect(line.startsWith('Message-ID:'), isTrue);
       expect(line.endsWith(crlf), isTrue);
-      expect(line.length, equals(76));
+      expect(line.length, equals(78));
     });
   });
 
   group('isWsp', () {
-    final f = (n) => isWsp(n);
+    final f = isWsp;
     final code = (s) => s.codeUnitAt(0);
 
     test('true', () {
@@ -399,7 +399,7 @@ Uint8List makeInvalidMail() {
   });
 
   group('replaceHeader', () {
-    final f = (l, b1, b2) => replaceHeader(l, b1, b2);
+    final f = replaceHeader;
 
     final foldedMail = makeFoldedMail();
     final dateLine = getDateLine(foldedMail);
@@ -430,7 +430,7 @@ Uint8List makeInvalidMail() {
   });
 
   group('replaceMail', () {
-    final f = (l, b1, b2) => replaceMail(l, b1, b2);
+    final f = replaceMail;
 
     test('replace', () {
       final foldedMail = makeFoldedMail();
