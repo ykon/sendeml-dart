@@ -200,10 +200,10 @@ void main() {
     });
 
     test('false', () {
-      expect(f(''), false);
-      expect(f('Date'), false);
-      expect(f('xxx: Date'), false);
-      expect(f('X-Date: xxx'), false);
+      expect(f(''), isFalse);
+      expect(f('Date'), isFalse);
+      expect(f('xxx: Date'), isFalse);
+      expect(f('X-Date: xxx'), isFalse);
     });
   });
 
@@ -222,6 +222,25 @@ void main() {
       expect(f('Message-ID'), isFalse);
       expect(f('xxx: Message-ID'), isFalse);
       expect(f('X-Message-ID: xxx'), isFalse);
+    });
+  });
+
+  group('makeTimeZoneOffset', () {
+    final f = (n) => makeTimeZoneOffset(n);
+    test('+', () {
+      expect(f(540), equals("+0900"));
+      expect(f(515), equals("+0835"));
+      expect(f(480), equals("+0800"));
+      expect(f(420), equals("+0700"));
+      expect(f(0), equals("+0000"));
+    });
+
+    test('-', () {
+      expect(f(-540), equals("-0900"));
+      expect(f(-515), equals("-0835"));
+      expect(f(-480), equals("-0800"));
+      expect(f(-420), equals("-0700"));
+      expect(f(-1), equals("-0001"));
     });
   });
 

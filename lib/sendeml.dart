@@ -111,17 +111,16 @@ bool isMsgIdLine(Uint8List line) {
   return matchHeader(line, msgIdBytes);
 }
 
-String makeTimeZoneOffset(DateTime now) {
-  final offset = now.timeZoneOffset;
-
-  final first = offset.inHours.toString().padLeft(2, '0');
-  return '+' + first.padRight(4, '0');
+String makeTimeZoneOffset(int min) {
+  final first = (min.abs() ~/ 60).toString().padLeft(2, '0');
+  final last = (min.abs() % 60).toString().padLeft(2, '0');
+  return (min < 0 ? '-' : '+') + first + last;
 }
 
 String makeNowDateLine() {
   final now = DateTime.now();
   final date = DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').format(now);
-  final zone = makeTimeZoneOffset(now);
+  final zone = makeTimeZoneOffset(now.timeZoneOffset.inMinutes);
 
   return 'Date: $date $zone$crlf';
 }
@@ -213,5 +212,7 @@ void main() {
   */
 
   //print(makeRandomMsgIdLine());
-  print(makeNowDateLine());
+  //print(makeNowDateLine());
+
+  print(makeTimeZoneOffset(0));
 }
