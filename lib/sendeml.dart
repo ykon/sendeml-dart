@@ -40,9 +40,9 @@ final emptyLine = Uint8List.fromList([cr, lf, cr, lf]);
 final equalsList = const ListEquality().equals;
 
 bool isEmptyLine(Uint8List bytes, int idx) {
-  return (bytes.length < (idx + 4))
-      ? false
-      : equalsList(bytes.sublist(idx, idx + 4), emptyLine);
+  if (bytes.length < (idx + 4)) return false;
+
+  return equalsList(bytes.sublist(idx, idx + 4), emptyLine);
 }
 
 Optional<int> findEmptyLine(Uint8List bytes) {
@@ -50,9 +50,7 @@ Optional<int> findEmptyLine(Uint8List bytes) {
 
   while (true) {
     final idx = findCr(bytes, offset);
-    if (idx.isEmpty || isEmptyLine(bytes, idx.value)) {
-      return idx;
-    }
+    if (idx.isEmpty || isEmptyLine(bytes, idx.value)) return idx;
 
     offset = idx.value + 1;
   }
@@ -69,9 +67,7 @@ List<int> findAllLf(Uint8List bytes) {
 
   while (true) {
     final idx = findLf(bytes, offset);
-    if (idx.isEmpty) {
-      return indices;
-    }
+    if (idx.isEmpty) return indices;
 
     indices.add(idx.value);
     offset = idx.value + 1;
@@ -95,12 +91,10 @@ Uint8List concatLines(List<Uint8List> lines) {
 }
 
 bool matchHeader(Uint8List line, Uint8List header) {
-  if (header.isEmpty) {
-    throw ArgumentError('header is empty');
-  }
+  if (header.isEmpty) throw ArgumentError('header is empty');
+  if (line.length < header.length) return false;
 
-  return (line.length < header.length) ? false
-    : equalsList(line.sublist(0, header.length), header);
+  return equalsList(line.sublist(0, header.length), header);
 }
 
 bool isDateLine(Uint8List line) {
@@ -111,9 +105,17 @@ bool isMsgIdLine(Uint8List line) {
   return matchHeader(line, msgIdBytes);
 }
 
+String padZero2(int n) {
+  if (n < 0 || n > 99) throw ArgumentError('invalid number');
+
+  return n.toString().padLeft(2, '0');
+}
+
 String makeTimeZoneOffset(int min) {
-  final first = (min.abs() ~/ 60).toString().padLeft(2, '0');
-  final last = (min.abs() % 60).toString().padLeft(2, '0');
+  if (min < -720 || min > 840) throw new ArgumentError('invalid number');
+
+  final first = padZero2(min.abs() ~/ 60);
+  final last = padZero2(min.abs() % 60);
   return (min < 0 ? '-' : '+') + first + last;
 }
 
@@ -145,11 +147,10 @@ bool isFoldedLine(Uint8List bytes) {
   return bytes.isNotEmpty ? isWsp(bytes.first) : false;
 }
 
-List<Uint8List> replaceLine(List<Uint8List> lines, MatchLine matchLine, MakeLine makeLine) {
+List<Uint8List> replaceLine(
+    List<Uint8List> lines, MatchLine matchLine, MakeLine makeLine) {
   final idx = lines.indexWhere(matchLine);
-  if (idx == -1) {
-    return lines;
-  }
+  if (idx == -1) return lines;
 
   final p1 = lines.sublist(0, idx);
   final p2 = [Uint8List.fromList(utf8.encode(makeLine()))];
@@ -169,24 +170,27 @@ List<Uint8List> replaceMsgIdLine(List<Uint8List> lines) {
 Uint8List replaceHeader(Uint8List header, bool updateDate, bool updateMsgId) {
   final lines = getLines(header);
 
-  final d = updateDate;
-  final m = updateMsgId;
-  return concatLines(
-    (d && m) ? replaceMsgIdLine(replaceDateLine(lines))
-    : (d && !m) ? replaceDateLine(lines)
-    : (!d && m) ? replaceMsgIdLine(lines)
-    : lines
-  );
+  List<Uint8List> replace() {
+    final d = updateDate;
+    final m = updateMsgId;
+
+    if (d && m) return replaceMsgIdLine(replaceDateLine(lines));
+    if (d && !m) return replaceDateLine(lines);
+    if (!d && m) return replaceMsgIdLine(lines);
+
+    return lines;
+  }
+
+  return concatLines(replace());
 }
 
 Uint8List combineMail(Uint8List header, Uint8List body) {
   return Uint8List.fromList(header + emptyLine + body);
 }
 
-Optional<Uint8List> replaceMail(Uint8List bytes, bool updateDate, bool updateMsgId) {
-  if (!updateDate && !updateMsgId) {
-    return Optional.of(bytes);
-  }
+Optional<Uint8List> replaceMail(
+    Uint8List bytes, bool updateDate, bool updateMsgId) {
+  if (!updateDate && !updateMsgId) return Optional.of(bytes);
 
   return splitMail(bytes).map((mail) {
     final header = mail.item1;

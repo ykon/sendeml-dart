@@ -13,129 +13,128 @@ void main() {
   Uint8List uint8(List<int> list) {
     return Uint8List.fromList(list);
   }
-  
+
   Uint8List strUint8(String s) {
     return uint8(utf8.encode(s));
+  }
+
+  void expectTrue(bool actual) {
+    expect(actual, isTrue);
+  }
+
+  void expectFalse(bool actual) {
+    expect(actual, isFalse);
   }
 
   group('indexToOptional', () {
     final f = indexToOptional;
 
     test('present', () {
-      expect(f(0).isPresent, isTrue);
-      expect(f(1).isPresent, isTrue);
+      expectTrue(f(0).isPresent);
+      expectTrue(f(1).isPresent);
     });
 
     test('empty', () {
-      expect(f(-1).isEmpty, isTrue);
-      expect(f(-2).isEmpty, isTrue);
+      expectTrue(f(-1).isEmpty);
+      expectTrue(f(-2).isEmpty);
     });
   });
 
   group('findCr', () {
-    final f = findCr;
-    final cr6 = uint8([0, 1, 2, 3, 4, 5, cr, 7, 8, 9]);
+    final f = (l, n) => findCr(uint8(l), n);
+    final cr6 = [0, 1, 2, 3, 4, 5, cr, 7, 8, 9];
 
     test('present', () {
       final optOk = f(cr6, 0);
-      expect(optOk.isPresent, isTrue);
+      expectTrue(optOk.isPresent);
       expect(optOk.value, equals(6));
     });
 
     test('empty', () {
-      expect(f(cr6, 7).isEmpty, isTrue);
+      expectTrue(f(cr6, 7).isEmpty);
 
-      final noCr = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-      expect(f(noCr, 0).isEmpty, isTrue);
+      final noCr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      expectTrue(f(noCr, 0).isEmpty);
     });
   });
 
   group('findLf', () {
-    final f = findLf;
-    final lf6 = uint8([0, 1, 2, 3, 4, 5, lf, 7, 8, 9]);
+    final f = (l, n) => findLf(uint8(l), n);
+    final lf6 = [0, 1, 2, 3, 4, 5, lf, 7, 8, 9];
     test('present', () {
       final optOk = f(lf6, 0);
-      expect(optOk.isPresent, isTrue);
+      expectTrue(optOk.isPresent);
       expect(optOk.value, equals(6));
     });
 
     test('empty', () {
-      expect(f(lf6, 7).isEmpty, isTrue);
+      expectTrue(f(lf6, 7).isEmpty);
 
-      final noLf = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); 
-      expect(f(noLf, 0).isEmpty, isTrue);
+      final noLf = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      expectTrue(f(noLf, 0).isEmpty);
     });
   });
 
+  final threeLines = uint8([0, 1, cr, lf, 4, 5, cr, lf, 8, 9]);
+
   group('findAllLf', () {
+    final f = findAllLf;
+
     test('zero', () {
-      final data = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]); // not 10
-      final indices = findAllLf(data);
+      final not10 = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]);
+      final indices = f(not10);
       expect(indices.length, equals(0));
     });
 
     test('three', () {
-      final data = uint8([0, 1, cr, lf, 4, 5, cr, lf, 8, 9, cr, lf]);
-      final indices = findAllLf(data);
-      expect(indices.length, equals(3));
+      final indices = f(threeLines);
+      expect(indices.length, equals(2));
       expect(indices[0], equals(3));
       expect(indices[1], equals(7));
-      expect(indices[2], equals(11));
     });
   });
 
   group('isEmptyLine', () {
-    final f = isEmptyLine;
+    final f = (l, n) => isEmptyLine(uint8(l), n);
 
     test('ok', () {
-      final ok1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, lf, 9]);
-      expect(f(ok1, 5), isTrue);
-      final ok2 = uint8([0, 1, 2, 3, 4, cr, lf, cr, lf]);
-      expect(f(ok2, 5), isTrue);
+      expectTrue(f([0, 1, 2, 3, 4, cr, lf, cr, lf, 9], 5));
+      expectTrue(f([0, 1, 2, 3, 4, cr, lf, cr, lf], 5));
     });
 
     test('bad', () {
-      final bad1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, 8, 9]);
-      expect(f(bad1, 5), isFalse);
-      final bad2 = uint8([0, 1, 2, 3, 4, cr, lf, cr]);
-      expect(f(bad2, 5), isFalse);
-      final bad3 = uint8([0, 1, 2, 3, 4, 5, cr, lf, cr, lf]);
-      expect(f(bad3, 5), isFalse);
+      expectFalse(f([0, 1, 2, 3, 4, cr, lf, cr, 8, 9], 5));
+      expectFalse(f([0, 1, 2, 3, 4, cr, lf, cr], 5));
+      expectFalse(f([0, 1, 2, 3, 4, 5, cr, lf, cr, lf], 5));
     });
   });
 
   group('findEmptyLine', () {
-    final f = findEmptyLine;
+    final f = (l) => findEmptyLine(uint8(l));
 
     test('ok', () {
-      final ok1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, lf, 9]);
-      expect(f(ok1).value, equals(5));
-      final ok2 = uint8([0, 1, 2, 3, 4, 5, cr, lf, cr, lf]);
-      expect(f(ok2).value, equals(6));
+      expect(f([0, 1, 2, 3, 4, cr, lf, cr, lf, 9]).value, equals(5));
+      expect(f([0, 1, 2, 3, 4, 5, cr, lf, cr, lf]).value, equals(6));
     });
 
     test('bad', () {
-      final bad1 = uint8([0, 1, 2, 3, 4, cr, lf, cr, 8, 9]);
-      expect(f(bad1).isEmpty, isTrue);
-      final bad2 = uint8([0, 1, 2, 3, 4, cr, lf, cr]);
-      expect(f(bad2).isEmpty, isTrue);
+      expectTrue(f([0, 1, 2, 3, 4, cr, lf, cr, 8, 9]).isEmpty);
+      expectTrue(f([0, 1, 2, 3, 4, cr, lf, cr]).isEmpty);
     });
   });
 
   group('splitMail', () {
-    final f = splitMail;
+    final f = (l) => splitMail(uint8(l));
 
     test('ok', () {
-      final ok = uint8([0, 1, 2, cr, lf, cr, lf, 7, 8, 9]);
-      final okMail = f(ok).value;
+      final okMail = f([0, 1, 2, cr, lf, cr, lf, 7, 8, 9]).value;
       expect(okMail.item1.toList(), equals([0, 1, 2]));
       expect(okMail.item2.toList(), equals([7, 8, 9]));
     });
 
     test('bad', () {
-      final bad = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-      final badMail = f(bad);
-      expect(badMail.isEmpty, isTrue);
+      final badMail = f([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      expectTrue(badMail.isEmpty);
     });
   });
 
@@ -148,11 +147,9 @@ void main() {
     });
   });
 
-  final three_lines = uint8([0, 1, cr, lf, 4, 5, cr, lf, 8, 9]);
-
   group('getLines', () {
     test('three', () {
-      final lines = getLines(three_lines);
+      final lines = getLines(threeLines);
       expect(lines[0], equals([0, 1, cr, lf]));
       expect(lines[1], equals([4, 5, cr, lf]));
       expect(lines[2], equals([8, 9]));
@@ -162,9 +159,11 @@ void main() {
   group('concatLines', () {
     test('three', () {
       final lines = [
-        uint8([0, 1, cr, lf]), uint8([4, 5, cr, lf]), uint8([8, 9])
-      ];
-      expect(concatLines(lines), equals(three_lines));
+        [0, 1, cr, lf],
+        [4, 5, cr, lf],
+        [8, 9]
+      ].map(uint8).toList();
+      expect(concatLines(lines), equals(threeLines));
     });
   });
 
@@ -172,19 +171,19 @@ void main() {
     final f = (s1, s2) => matchHeader(strUint8(s1), strUint8(s2));
 
     test('true', () {
-      expect(f('Test:', 'Test:'), isTrue);
-      expect(f('Test:   ', 'Test:'), isTrue);
-      expect(f('Test: xxx', 'Test:'), isTrue);
+      expectTrue(f('Test:', 'Test:'));
+      expectTrue(f('Test:   ', 'Test:'));
+      expectTrue(f('Test: xxx', 'Test:'));
     });
 
     test('false', () {
-      expect(f('', 'Test:'), isFalse);
-      expect(f('T', 'Test:'), isFalse);
-      expect(f('Test', 'Test:'), isFalse);
-      expect(f('X-Test:', 'Test:'), isFalse);
+      expectFalse(f('', 'Test:'));
+      expectFalse(f('T', 'Test:'));
+      expectFalse(f('Test', 'Test:'));
+      expectFalse(f('X-Test:', 'Test:'));
     });
 
-    test('exception', () {
+    test('error', () {
       expect(() => f('Test:', ''), throwsArgumentError);
     });
   });
@@ -193,17 +192,17 @@ void main() {
     final f = (s) => isDateLine(strUint8(s));
 
     test('true', () {
-      expect(f('Date: xxx'), isTrue);
-      expect(f('Date:xxx'), isTrue);
-      expect(f('Date:'), isTrue);
-      expect(f('Date:   '), isTrue);
+      expectTrue(f('Date: xxx'));
+      expectTrue(f('Date:xxx'));
+      expectTrue(f('Date:'));
+      expectTrue(f('Date:   '));
     });
 
     test('false', () {
-      expect(f(''), isFalse);
-      expect(f('Date'), isFalse);
-      expect(f('xxx: Date'), isFalse);
-      expect(f('X-Date: xxx'), isFalse);
+      expectFalse(f(''));
+      expectFalse(f('Date'));
+      expectFalse(f('xxx: Date'));
+      expectFalse(f('X-Date: xxx'));
     });
   });
 
@@ -211,53 +210,74 @@ void main() {
     final f = (s) => isMsgIdLine(strUint8(s));
 
     test('true', () {
-      expect(f('Message-ID: xxx'), isTrue);
-      expect(f('Message-ID:xxx'), isTrue);
-      expect(f('Message-ID:'), isTrue);
-      expect(f('Message-ID:   '), isTrue);
+      expectTrue(f('Message-ID: xxx'));
+      expectTrue(f('Message-ID:xxx'));
+      expectTrue(f('Message-ID:'));
+      expectTrue(f('Message-ID:   '));
     });
 
     test('false', () {
-      expect(f(''), isFalse);
-      expect(f('Message-ID'), isFalse);
-      expect(f('xxx: Message-ID'), isFalse);
-      expect(f('X-Message-ID: xxx'), isFalse);
+      expectFalse(f(''));
+      expectFalse(f('Message-ID'));
+      expectFalse(f('xxx: Message-ID'));
+      expectFalse(f('X-Message-ID: xxx'));
+    });
+  });
+
+  group('padZero2', () {
+    final f = padZero2;
+
+    test('ok', () {
+      expect(f(0), equals('00'));
+      expect(f(1), equals('01'));
+      expect(f(10), equals('10'));
+      expect(f(99), equals('99'));
+    });
+
+    test('error', () {
+      expect(() => f(-1), throwsArgumentError);
+      expect(() => f(100), throwsArgumentError);
     });
   });
 
   group('makeTimeZoneOffset', () {
     final f = makeTimeZoneOffset;
-    test('+', () {
-      expect(f(540), equals("+0900"));
-      expect(f(515), equals("+0835"));
-      expect(f(480), equals("+0800"));
-      expect(f(420), equals("+0700"));
-      expect(f(0), equals("+0000"));
+    test('positive', () {
+      expect(f(840), equals('+1400'));
+      expect(f(540), equals('+0900'));
+      expect(f(480), equals('+0800'));
+      expect(f(420), equals('+0700'));
+      expect(f(0), equals('+0000'));
     });
 
-    test('-', () {
-      expect(f(-540), equals("-0900"));
-      expect(f(-515), equals("-0835"));
-      expect(f(-480), equals("-0800"));
-      expect(f(-420), equals("-0700"));
-      expect(f(-1), equals("-0001"));
+    test('negative', () {
+      expect(f(-720), equals('-1200'));
+      expect(f(-540), equals('-0900'));
+      expect(f(-480), equals('-0800'));
+      expect(f(-420), equals('-0700'));
+      expect(f(-1), equals('-0001'));
+    });
+
+    test('error', () {
+      expect(() => f(841), throwsArgumentError);
+      expect(() => f(-721), throwsArgumentError);
     });
   });
 
   group('makeNowDateLine', () {
     test('line', () {
       final line = makeNowDateLine();
-      expect(line.startsWith('Date:'), isTrue);
-      expect(line.endsWith(crlf), isTrue);
-      expect(line.length <= 78, isTrue);
+      expectTrue(line.startsWith('Date:'));
+      expectTrue(line.endsWith(crlf));
+      expectTrue(line.length <= 78);
     });
   });
 
   group('makeRandomMsgIdLine', () {
     test('line', () {
       final line = makeRandomMsgIdLine();
-      expect(line.startsWith('Message-ID:'), isTrue);
-      expect(line.endsWith(crlf), isTrue);
+      expectTrue(line.startsWith('Message-ID:'));
+      expectTrue(line.endsWith(crlf));
       expect(line.length, equals(78));
     });
   });
@@ -267,30 +287,30 @@ void main() {
     final code = (s) => s.codeUnitAt(0);
 
     test('true', () {
-      expect(f(code(' ')), isTrue);
-      expect(f(code('\t')), isTrue);
+      expectTrue(f(code(' ')));
+      expectTrue(f(code('\t')));
     });
 
     test('false', () {
-      expect(f(code('\0')), isFalse);
-      expect(f(code('a')), isFalse);
-      expect(f(code('b')), isFalse);
+      expectFalse(f(code('\0')));
+      expectFalse(f(code('a')));
+      expectFalse(f(code('b')));
     });
   });
 
   group('isFoldedLine', () {
     final f = (List<String> l) =>
-      isFoldedLine(uint8(l.map((s) => s.codeUnitAt(0)).toList()));
+        isFoldedLine(uint8(l.map((s) => s.codeUnitAt(0)).toList()));
 
     test('true', () {
-      expect(f([' ', 'a', 'b']), isTrue);
-      expect(f(['\t', 'a', 'b']), isTrue);
+      expectTrue(f([' ', 'a', 'b']));
+      expectTrue(f(['\t', 'a', 'b']));
     });
 
     test('false', () {
-      expect(f(['\0', 'a', 'b']), isFalse);
-      expect(f(['a', 'a', ' ']), isFalse);
-      expect(f(['b', 'a', '\t']), isFalse);
+      expectFalse(f(['\0', 'a', 'b']));
+      expectFalse(f(['a', 'a', ' ']));
+      expectFalse(f(['b', 'a', '\t']));
     });
   });
 
@@ -315,7 +335,7 @@ test''';
     return toCrLf(text);
   }
 
-String makeFoldedMailText() {
+  String makeFoldedMailText() {
     const text = '''From: a001 <a001@ah62.example.jp>
 Subject: test
 To: a002@ah62.example.jp
@@ -333,11 +353,11 @@ Content-Language: en-US
 
 test''';
     return toCrLf(text);
-}
+  }
 
-Uint8List makeInvalidMail() {
-  return strUint8(makeFoldedMailText().replaceFirst('\r\n\r\n', ''));
-}
+  Uint8List makeInvalidMail() {
+    return strUint8(makeFoldedMailText().replaceFirst('\r\n\r\n', ''));
+  }
 
   group('make*Text', () {
     test('simple', () {
@@ -367,65 +387,65 @@ Uint8List makeInvalidMail() {
   }
 
   String getDateLine(Uint8List mail) {
-    return getHeaderLine(mail, "Date");
+    return getHeaderLine(mail, 'Date');
   }
 
   String getMsgIdLine(Uint8List mail) {
-    return getHeaderLine(mail, "Message-ID");
+    return getHeaderLine(mail, 'Message-ID');
   }
 
   group('replaceDateLine', () {
     test('folded', () {
-      final foldedMail = makeFoldedMail();
-      final lines = getLines(foldedMail);
+      final mail = makeFoldedMail();
+      final lines = getLines(mail);
       final newLines = replaceDateLine(lines);
       final newMail = concatLines(newLines);
-      expect(equalsList(foldedMail, newMail), isFalse);
-      expect(getDateLine(newMail) != getDateLine(foldedMail), isTrue);
-      expect(getMsgIdLine(newMail) == getMsgIdLine(foldedMail), isTrue);
+      expectFalse(equalsList(mail, newMail));
+      expectTrue(getDateLine(newMail) != getDateLine(mail));
+      expectTrue(getMsgIdLine(newMail) == getMsgIdLine(mail));
     });
   });
 
   group('replaceMsgIdLine', () {
     test('folded', () {
-      final foldedMail = makeFoldedMail();
-      final lines = getLines(foldedMail);
+      final mail = makeFoldedMail();
+      final lines = getLines(mail);
       final newLines = replaceMsgIdLine(lines);
       final newMail = concatLines(newLines);
-      expect(equalsList(foldedMail, newMail), isFalse);
-      expect(getMsgIdLine(newMail) != getMsgIdLine(foldedMail), isTrue);
-      expect(getDateLine(newMail) == getDateLine(foldedMail), isTrue);
+      expectFalse(equalsList(mail, newMail));
+      expectTrue(getMsgIdLine(newMail) != getMsgIdLine(mail));
+      expectTrue(getDateLine(newMail) == getDateLine(mail));
     });
   });
 
   group('replaceHeader', () {
     final f = replaceHeader;
 
-    final foldedMail = makeFoldedMail();
-    final dateLine = getDateLine(foldedMail);
-    final msgIdLine = getMsgIdLine(foldedMail);
+    final mail = makeFoldedMail();
+    final dateLine = getDateLine(mail);
+    final msgIdLine = getMsgIdLine(mail);
 
     test('true, true', () {
-      final replMail = f(foldedMail, true, true);
-      expect(dateLine != getDateLine(replMail), isTrue);
-      expect(msgIdLine != getMsgIdLine(replMail), isTrue);
+      final replMail = f(mail, true, true);
+      expectTrue(dateLine != getDateLine(replMail));
+      expectTrue(msgIdLine != getMsgIdLine(replMail));
     });
 
     test('true, false', () {
-      final replMail = f(foldedMail, true, false);
-      expect(dateLine != getDateLine(replMail), isTrue);
-      expect(msgIdLine == getMsgIdLine(replMail), isTrue);
+      final replMail = f(mail, true, false);
+      expectTrue(dateLine != getDateLine(replMail));
+      expectTrue(msgIdLine == getMsgIdLine(replMail));
     });
 
     test('false, true', () {
-      final replMail = f(foldedMail, false, true);
-      expect(dateLine == getDateLine(replMail), isTrue);
-      expect(msgIdLine != getMsgIdLine(replMail), isTrue);
+      final replMail = f(mail, false, true);
+      expectTrue(dateLine == getDateLine(replMail));
+      expectTrue(msgIdLine != getMsgIdLine(replMail));
     });
 
     test('false, false', () {
-      final replMail = f(foldedMail, false, false);
-      expect(equalsList(replMail, foldedMail), isTrue);
+      final replMail = f(mail, false, false);
+      expectTrue(equalsList(replMail, mail));
     });
   });
 
@@ -433,15 +453,15 @@ Uint8List makeInvalidMail() {
     final f = replaceMail;
 
     test('replace', () {
-      final foldedMail = makeFoldedMail();
-      final replMail = f(foldedMail, true, true).value;
-      expect(equalsList(replMail, foldedMail), isFalse);
+      final mail = makeFoldedMail();
+      final replMail = f(mail, true, true).value;
+      expectFalse(equalsList(replMail, mail));
       final body = replMail.sublist(replMail.length - 4);
       expect(utf8.decode(body), equals('test'));
     });
 
     test('invalid', () {
-      expect(f(makeInvalidMail(), true, true).isEmpty, isTrue);
+      expectTrue(f(makeInvalidMail(), true, true).isEmpty);
     });
   });
 }
