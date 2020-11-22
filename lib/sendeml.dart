@@ -112,7 +112,7 @@ String padZero2(int n) {
 }
 
 String makeTimeZoneOffset(int min) {
-  if (min < -720 || min > 840) throw new ArgumentError('invalid number');
+  if (min < -720 || min > 840) throw ArgumentError('invalid number');
 
   final first = padZero2(min.abs() ~/ 60);
   final last = padZero2(min.abs() % 60);
