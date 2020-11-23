@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) Yuki Ono.
+ * Licensed under the MIT License.
+ */
+
 import 'package:sendeml/sendeml.dart';
 import 'dart:async';
 import 'dart:convert';
