@@ -80,6 +80,20 @@ SendCmd makeSendCmd(Socket socket, {int id = 0}) {
   };
 }
 
+Future<int> checkEmlFiles(Settings settings, int emlIdx) async {
+  var idx = emlIdx;
+  final emlFiles = settings.emlFiles;
+  while (true) {
+    if (idx >= emlFiles.length) return idx;
+
+    final file = emlFiles[idx];
+    if (await File(file).exists()) return idx;
+
+    print('error: .eml file not found: $file');
+    idx += 1;
+  }
+}
+
 Future<void> sendMessages(Settings settings, List<String> emlFiles,
     {int id = 0}) async {
   await Socket.connect(settings.smtpHost, settings.smtpPort)
@@ -87,22 +101,25 @@ Future<void> sendMessages(Settings settings, List<String> emlFiles,
     var emlIdx = 0;
     var state = SendState.begin;
     final send = makeSendCmd(socket, id: id);
+    var reset = false;
 
     Future<void> doBeginState() async {
-      if (settings.emlFiles.length == emlIdx) {
+      emlIdx = await checkEmlFiles(settings, emlIdx);
+      if (emlIdx >= settings.emlFiles.length) {
         sendQuit(send);
         state = SendState.end;
       } else {
-        await ((emlIdx == 0) ? sendHello : sendRset)(send);
+        await (reset ? sendRset : sendHello)(send);
       }
     }
 
     Future<void> doMailState() async {
-      final current_eml = settings.emlFiles[emlIdx++];
+      final file = settings.emlFiles[emlIdx++];
       await sendMail(
-          socket, current_eml, settings.updateDate, settings.updateMessageId,
+          socket, file, settings.updateDate, settings.updateMessageId,
           id: id);
       await sendCrLfDot(send);
+      reset = true;
     }
 
     loop:
@@ -136,7 +153,7 @@ Future<void> sendMessages(Settings settings, List<String> emlFiles,
 
 Future<void> procJsonFile(String jsonFile) async {
   if (!await File(jsonFile).exists()) {
-    print('error: file not found: $jsonFile');
+    print('error: JSON file not found: $jsonFile');
     return;
   }
 
