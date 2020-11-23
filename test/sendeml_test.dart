@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:sendeml/sendeml.dart';
-//import 'package:optional/optional.dart';
 
 void main() {
   Uint8List uint8(List<int> list) {
@@ -27,7 +26,7 @@ void main() {
   }
 
   group('indexToOptional', () {
-    final f = indexToOptional;
+    const f = indexToOptional;
 
     test('present', () {
       expectTrue(f(0).isPresent);
@@ -78,7 +77,7 @@ void main() {
   final threeLines = uint8([0, 1, cr, lf, 4, 5, cr, lf, 8, 9]);
 
   group('findAllLf', () {
-    final f = findAllLf;
+    const f = findAllLf;
 
     test('zero', () {
       final not10 = uint8([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]);
@@ -225,7 +224,7 @@ void main() {
   });
 
   group('padZero2', () {
-    final f = padZero2;
+    const f = padZero2;
 
     test('ok', () {
       expect(f(0), equals('00'));
@@ -241,7 +240,7 @@ void main() {
   });
 
   group('makeTimeZoneOffset', () {
-    final f = makeTimeZoneOffset;
+    const f = makeTimeZoneOffset;
     test('positive', () {
       expect(f(840), equals('+1400'));
       expect(f(540), equals('+0900'));
@@ -283,7 +282,7 @@ void main() {
   });
 
   group('isWsp', () {
-    final f = isWsp;
+    const f = isWsp;
     final code = (s) => s.codeUnitAt(0);
 
     test('true', () {
@@ -319,7 +318,7 @@ void main() {
   }
 
   String makeSimpleMailText() {
-    final text = '''From: a001 <a001@ah62.example.jp>
+    const text = '''From: a001 <a001@ah62.example.jp>
 Subject: test
 To: a002@ah62.example.jp
 Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
@@ -371,9 +370,11 @@ test''';
     });
   });
 
+  /*
   Uint8List makeSimpleMail() {
     return strUint8(makeSimpleMailText());
   }
+  */
 
   Uint8List makeFoldedMail() {
     return strUint8(makeFoldedMailText());
@@ -419,7 +420,7 @@ test''';
   });
 
   group('replaceHeader', () {
-    final f = replaceHeader;
+    const f = replaceHeader;
 
     final mail = makeFoldedMail();
     final dateLine = getDateLine(mail);
@@ -450,7 +451,7 @@ test''';
   });
 
   group('replaceMail', () {
-    final f = replaceMail;
+    const f = replaceMail;
 
     test('replace', () {
       final mail = makeFoldedMail();
@@ -462,6 +463,234 @@ test''';
 
     test('invalid', () {
       expectTrue(f(makeInvalidMail(), true, true).isEmpty);
+    });
+  });
+
+  group('isLastReply', () {
+    const f = isLastReply;
+
+    test('false', () {
+      expectFalse(f(''));
+      expectFalse(f('250-First line'));
+      expectFalse(f('250-Second line'));
+      expectFalse(f('250-234 Text beginning with numbers'));
+    });
+
+    test('true', () {
+      expectTrue(f('250 The last line'));
+      expectTrue(f('250 OK'));
+    });
+  });
+
+  group('isPositiveReply', () {
+    const f = isPositiveReply;
+
+    test('true', () {
+      expectTrue(f('200 xxx'));
+      expectTrue(f('300 xxx'));
+    });
+
+    test('false', () {
+      expectFalse(f(''));
+      expectFalse(f('400 xxx'));
+      expectFalse(f('500 xxx'));
+      expectFalse(f('xxx 200'));
+      expectFalse(f('xxx 300'));
+    });
+  });
+
+  group('replaceCrLfDot', () {
+    const f = replaceCrLfDot;
+
+    test('target', () {
+      expect(f('$crlf.'), equals('<CRLF>.'));
+    });
+
+    test('pass', () {
+      expect(f('TEST'), equals('TEST'));
+      expect(f('CRLF'), equals('CRLF'));
+      expect(f(crlf), equals(crlf));
+      expect(f('.'), equals('.'));
+    });
+  });
+
+  group('nextSendState', () {
+    const f = nextSendState;
+
+    test('next', () {
+      expect(f(SendState.begin), equals(SendState.from));
+      expect(f(SendState.from), equals(SendState.rcptTo));
+      expect(f(SendState.rcptTo), equals(SendState.data));
+      expect(f(SendState.data), equals(SendState.mail));
+    });
+
+    test('loop and end', () {
+      expect(f(SendState.mail), equals(SendState.begin));
+      expect(f(SendState.end), equals(SendState.end));
+    });
+  });
+
+  group('makeIdPrefix', () {
+    const f = makeIdPrefix;
+
+    test('id', () {
+      expect(f(1), equals('id: 1, '));
+      expect(f(2), equals('id: 2, '));
+      expect(f(10), equals('id: 10, '));
+    });
+
+    test('empty', () {
+      expect(f(0), equals(''));
+    });
+
+    test('error', () {
+      expect(() => f(-1), throwsArgumentError);
+    });
+  });
+
+  SendCmd makeTestSendCmd(String expected) {
+    return (String cmd) async {
+      expect(cmd, equals(expected));
+    };
+  }
+
+  group('sendHello', () {
+    test('cmd', () {
+      sendHello(makeTestSendCmd('EHLO localhost'));
+    });
+  });
+
+  group('sendQuit', () {
+    test('cmd', () {
+      sendQuit(makeTestSendCmd('QUIT'));
+    });
+  });
+
+  group('sendRset', () {
+    test('cmd', () {
+      sendRset(makeTestSendCmd('RSET'));
+    });
+  });
+
+  group('sendData', () {
+    test('cmd', () {
+      sendData(makeTestSendCmd('DATA'));
+    });
+  });
+
+  group('sendCrLfDot', () {
+    test('cmd', () {
+      sendCrLfDot(makeTestSendCmd('\r\n.'));
+    });
+  });
+
+  group('sendFrom', () {
+    test('cmd', () {
+      sendFrom(makeTestSendCmd('MAIL FROM: <a001@ah62.example.jp>'),
+          'a001@ah62.example.jp');
+    });
+  });
+
+  group('sendRcptTo', () {
+    var count = 1;
+    final testCmd = (String cmd) async {
+      expect(cmd, equals('RCPT TO: <a00${count++}@ah62.example.jp>'));
+    };
+
+    test('cmd', () {
+      sendRcptTo(testCmd, [
+        'a001@ah62.example.jp',
+        'a002@ah62.example.jp',
+        'a003@ah62.example.jp'
+      ]);
+    });
+  });
+
+  group('checkJsonValue', () {
+    final f = (str, type) => checkJsonValue(json.decode(str), 'test', type);
+    const jsonStr = '{"test": "172.16.3.151"}';
+    const jsonNumber = '{"test": 172}';
+    const jsonTrue = '{"test": true}';
+    const jsonFalse = '{"test": false}';
+
+    test('ok', () {
+      expect(() => f(jsonStr, 'String'), returnsNormally);
+      expect(() => f(jsonNumber, 'int'), returnsNormally);
+      expect(() => f(jsonTrue, 'bool'), returnsNormally);
+      expect(() => f(jsonFalse, 'bool'), returnsNormally);
+    });
+
+    test('error', () {
+      expect(() => f(jsonStr, 'int'), throwsFormatException);
+      expect(() => f(jsonNumber, 'String'), throwsFormatException);
+      expect(() => f(jsonTrue, 'number'), throwsFormatException);
+      expect(() => f(jsonFalse, 'number'), throwsFormatException);
+    });
+  });
+
+  group('checkJsonArrayValue', () {
+    final f =
+        (str, type) => checkJsonArrayValue(json.decode(str), 'test', type);
+
+    const jsonStrArray =
+        '{"test": ["172.16.3.151", "172.16.3.152", "172.16.3.153"]}';
+    const jsonNumberArray = '{"test": [1, 2, 3]}';
+    const jsonInvalidArray = '{"test": ["172.16.3.151", "172.16.3.152", 172]}';
+    const jsonStr = '{"test": "172.16.3.151"}';
+
+    test('ok', () {
+      expect(() => f(jsonStrArray, 'String'), returnsNormally);
+      expect(() => f(jsonNumberArray, 'int'), returnsNormally);
+    });
+
+    test('error', () {
+      expect(() => f(jsonStrArray, 'int'), throwsFormatException);
+      expect(() => f(jsonNumberArray, 'String'), throwsFormatException);
+      expect(() => f(jsonInvalidArray, 'String'), throwsFormatException);
+      expect(() => f(jsonStr, 'String'), throwsFormatException);
+    });
+  });
+
+  group('checkRequiredKeys', () {
+    final f = (key) {
+      final noKey = makeJsonSample().replaceAll(key, 'X-$key');
+      checkRequiredKeys(getSettingsFromText(noKey));
+    };
+
+    test('no throw', () {
+      expect(() => f('updateDate'), returnsNormally);
+      expect(() => f('updateMessageId'), returnsNormally);
+      expect(() => f('useParallel'), returnsNormally);
+    });
+
+    test('error', () {
+      expect(() => f('smtpHost'), throwsFormatException);
+      expect(() => f('smtpPort'), throwsFormatException);
+      expect(() => f('fromAddress'), throwsFormatException);
+      expect(() => f('toAddresses'), throwsFormatException);
+      expect(() => f('emlFiles'), throwsFormatException);
+    });
+  });
+
+  group('get/mapSettings', () {
+    final settings = mapSettings(getSettingsFromText(makeJsonSample()));
+
+    test('settings', () {
+      final s = settings;
+      expect(s.smtpHost, equals('172.16.3.151'));
+      expect(s.smtpPort, equals(25));
+      expect(s.fromAddress, equals('a001@ah62.example.jp'));
+      expect(
+          s.toAddresses,
+          equals([
+            'a001@ah62.example.jp',
+            'a002@ah62.example.jp',
+            'a003@ah62.example.jp'
+          ]));
+      expect(s.emlFiles, equals(['test1.eml', 'test2.eml', 'test3.eml']));
+      expect(s.updateDate, equals(true));
+      expect(s.updateMessageId, equals(true));
+      expect(s.useParallel, equals(false));
     });
   });
 }

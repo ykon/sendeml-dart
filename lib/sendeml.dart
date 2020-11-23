@@ -4,7 +4,7 @@
  */
 
 import 'dart:convert';
-//import 'dart:io';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
@@ -106,13 +106,13 @@ bool isMsgIdLine(Uint8List line) {
 }
 
 String padZero2(int n) {
-  if (n < 0 || n > 99) throw ArgumentError('invalid number');
+  if (n < 0 || n > 99) throw ArgumentError('invalid number: $n');
 
   return n.toString().padLeft(2, '0');
 }
 
 String makeTimeZoneOffset(int min) {
-  if (min < -720 || min > 840) throw ArgumentError('invalid number');
+  if (min < -720 || min > 840) throw ArgumentError('invalid number: $min');
 
   final first = padZero2(min.abs() ~/ 60);
   final last = padZero2(min.abs() % 60);
@@ -168,9 +168,8 @@ List<Uint8List> replaceMsgIdLine(List<Uint8List> lines) {
 }
 
 Uint8List replaceHeader(Uint8List header, bool updateDate, bool updateMsgId) {
-  final lines = getLines(header);
-
   List<Uint8List> replace() {
+    final lines = getLines(header);
     final d = updateDate;
     final m = updateMsgId;
 
@@ -199,24 +198,166 @@ Optional<Uint8List> replaceMail(
   });
 }
 
-void main() {
-  //final data = File('simple.eml').readAsBytesSync();
-  //print(data);
+String makeJsonSample() {
+  return '''{
+    "smtpHost": "172.16.3.151",
+    "smtpPort": 25,
+    "fromAddress": "a001@ah62.example.jp",
+    "toAddresses": [
+        "a001@ah62.example.jp",
+        "a002@ah62.example.jp",
+        "a003@ah62.example.jp"
+    ],
+    "emlFiles": [
+        "test1.eml",
+        "test2.eml",
+        "test3.eml"
+    ],
+    "updateDate": true,
+    "updateMessageId": true,
+    "useParallel": false
+}''';
+}
 
-  //final decoded = utf8.decode(data);
-  //print(decoded);
+dynamic getSettingsFromText(String text) {
+  return json.decode(text);
+}
 
-  //print(String.fromCharCodes(data));
+dynamic getSettings(String jsonFile) {
+  return getSettingsFromText(new File(jsonFile).readAsStringSync());
+}
 
-  /*
-  final res = splitMail(data);
-  res.ifPresent((t) {
-    print(t);
-  });
-  */
+void checkJsonValue(dynamic json, String key, String type) {
+  if (!json.containsKey(key)) return;
 
-  //print(makeRandomMsgIdLine());
-  //print(makeNowDateLine());
+  if (json[key].runtimeType.toString() != type) {
+    throw FormatException('invalid type: $key: ${json[key]}');
+  }
+}
 
-  print(makeTimeZoneOffset(0));
+void checkJsonArrayValue(dynamic json, String key, String type) {
+  if (!json.containsKey(key)) return;
+
+  final array = json[key];
+  if (array is! List) {
+    throw FormatException('invalid type (array): $key: ${json[key]}');
+  }
+
+  final elm = array.firstWhere((v) => v.runtimeType.toString() != type,
+      orElse: () => null);
+  if (elm != null) {
+    throw FormatException('invalid type (element): $key: $elm');
+  }
+}
+
+void checkRequiredKeys(dynamic json) {
+  const names = [
+    'smtpHost',
+    'smtpPort',
+    'fromAddress',
+    'toAddresses',
+    'emlFiles'
+  ];
+
+  final key = names.firstWhere((k) => !json.containsKey(k), orElse: () => null);
+  if (key != null) throw FormatException('key not found: $key');
+}
+
+void checkSettings(dynamic json) {
+  checkRequiredKeys(json);
+
+  checkJsonValue(json, 'smtpHost', 'String');
+  checkJsonValue(json, 'smtpPort', 'int');
+  checkJsonValue(json, 'fromAddress', 'String');
+  checkJsonArrayValue(json, 'toAddresses', 'String');
+  checkJsonArrayValue(json, 'emlFiles', 'String');
+  checkJsonValue(json, 'updateDate', 'bool');
+  checkJsonValue(json, 'updateMessageId', 'bool');
+  checkJsonValue(json, 'useParallel', 'bool');
+}
+
+class Settings {
+  final String smtpHost;
+  final int smtpPort;
+  final String fromAddress;
+  final List<String> toAddresses;
+  final List<String> emlFiles;
+  final bool updateDate;
+  final bool updateMessageId;
+  final bool useParallel;
+
+  Settings(this.smtpHost, this.smtpPort, this.fromAddress, this.toAddresses,
+      this.emlFiles, this.updateDate, this.updateMessageId, this.useParallel);
+}
+
+Settings mapSettings(dynamic json) {
+  return Settings(
+      json['smtpHost'],
+      json['smtpPort'],
+      json['fromAddress'],
+      json['toAddresses'].cast<String>(),
+      json['emlFiles'].cast<String>(),
+      json['updateDate'] ?? true,
+      json['updateMessageId'] ?? true,
+      json['useParallel'] ?? false);
+}
+
+final lastReplyRegex = RegExp(r'^\d{3} .+');
+
+bool isLastReply(String line) {
+  return lastReplyRegex.hasMatch(line);
+}
+
+bool isPositiveReply(String line) {
+  final first = line.isNotEmpty ? line[0] : '';
+  return first == '2' || first == '3';
+}
+
+String replaceCrLfDot(String cmd) {
+  return cmd == '$crlf.' ? '<CRLF>.' : cmd;
+}
+
+typedef SendCmd = Future<void> Function(String);
+
+Future<void> sendHello(SendCmd send) async {
+  await send('EHLO localhost');
+}
+
+Future<void> sendQuit(SendCmd send) async {
+  await send('QUIT');
+}
+
+Future<void> sendRset(SendCmd send) async {
+  await send('RSET');
+}
+
+Future<void> sendData(SendCmd send) async {
+  await send('DATA');
+}
+
+Future<void> sendFrom(SendCmd send, String fromAddr) async {
+  await send('MAIL FROM: <$fromAddr>');
+}
+
+Future<void> sendRcptTo(SendCmd send, List<String> toAddrs) async {
+  for (final addr in toAddrs) await send('RCPT TO: <$addr>');
+}
+
+Future<void> sendCrLfDot(SendCmd send) async {
+  await send('$crlf.');
+}
+
+String makeIdPrefix(int id) {
+  if (id < 0) throw ArgumentError('invalid number: $id');
+
+  return (id > 0) ? 'id: $id, ' : '';
+}
+
+enum SendState { begin, from, rcptTo, data, mail, end }
+
+SendState nextSendState(SendState state) {
+  if (state == SendState.end) return state;
+  if (state == SendState.mail) return SendState.begin;
+
+  return SendState.values[state.index + 1];
 }
