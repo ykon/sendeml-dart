@@ -6,13 +6,13 @@ A testing tool for sending raw eml files.
 
 ## Usage
 
-### Windows
+### Run
 ```
-dart .\bin\sendeml.dart <setting_file> ...
-```
-### Others
-```
-dart ./bin/sendeml.dart <setting_file> ...
+cd sendeml-dart
+pub get
+
+Windows: dart .\bin\sendeml.dart <setting_file> ...
+Others: dart ./bin/sendeml.dart <setting_file> ...
 ```
 
 ## Setting File (JSON format)
